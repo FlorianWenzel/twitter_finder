@@ -1,0 +1,48 @@
+main {
+    display: grid!important;
+    position: absolute;
+    align-items: center;
+    width: 98vw;
+    height: 98vh;
+    margin: 1vh 1vw 1vh 1vw;
+    left: 0;
+    top: 0;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 7fr .5fr .5fr;
+    grid-template-areas:
+        "date_select date_select date_select"
+        "type_select type_select type_select"
+        "download download download"
+        "status status status"
+        "keys power logout";
+}
+#date_select {
+    width: 100%;
+    grid-area: date_select;
+}
+#type_select {
+    width: 100%;
+    grid-area: type_select;
+}
+#download {
+    margin: 25vw;
+    height: 48vw;
+    border-radius: 50%;
+    grid-area: download;
+}
+#status {
+    grid-area: status;
+    margin: 1vw;
+}
+#keys, #logout{
+    margin: 1vw;
+}
+#keys {
+    grid-area: keys;
+}
+#logout {
+    grid-area: logout;
+}
+#power {
+    grid-area: power;
+}

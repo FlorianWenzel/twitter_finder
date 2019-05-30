@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>Twitter finder</title>
+        <meta name="viewport" content="width=device-width">
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.dev.js"></script>
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@8"></script>
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
+        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    </head>
+    <body>
+        <main>
+            <select  id="date_select" class="form-control">
+                <option value="24h">Last 24h</option>
+                <option value="7d">Last 7 Tage</option>
+                <option value="30d">Last 30 Tage</option>
+                <option value="10">Latest 10</option>
+                <option value="100">Latest 100</option>
+                <option value="all">All</option>
+            </select>
+            <select  id="type_select" class="form-control">
+                <option value="txt">as .txt</option>
+                <option value="csv">as .csv</option>
+                <option value="json">as .json</option>
+            </select>
+            <button id="download" class="btn btn-primary"><i class="fas fa-download fa-5x"></i></button>
+            <div id="status">
+                <span id="power_timestamp"></span><br>
+                last tweet recorded: <span id="last_tweet"> - </span> ago
+            </div>
+            <button id="keys" class="btn btn-primary"><i class="fas fa-key"></i></button>
+            <button id="power" class="btn btn-success"><i class="fas fa-power-off"></i></button>
+            <button id="logout" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i></button>
+        </main>
+        <script src="script.js"></script>
+    </body>
+</html>
