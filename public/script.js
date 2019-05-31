@@ -31,7 +31,7 @@ function showLogin() {
     })
 }
 socket.on('login', (_token) => {
-    if(_tokent){
+    if(_token){
         token = _token;
         localStorage.setItem('token', _token);
     }else{
