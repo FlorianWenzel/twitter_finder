@@ -49,7 +49,7 @@ io.on('connection', (socket) => {
             socket.join('loggedIn')
             socket.emit('power_timestamp', !!stream, power_timestamp)
             socket.emit('tweet', last_tweet_timestamp)
-            socket.emit('login', (await users.findOne({$or: [{username: username}, {token: token}]})).token)
+            socket.emit('login', (await users.findOne({$or: [{username: username}, {token: token}]})).token, (await users.findOne({$or: [{username: username}, {token: token}]})).enabled_languages)
         }else{
             socket.emit('login', false)
         }
@@ -86,6 +86,15 @@ io.on('connection', (socket) => {
         await users.updateOne({token: token}, {$set: {keys: keys}})
         socket.emit('getKeys', keys);
     })
+    socket.on('change_languages', async (token, enabled_languages) => {
+        const user = await users.findOne({token: token});
+        if(!user){
+            socket.emit('login', false);
+            return;
+        }
+        await users.updateOne(user, {$set: {enabled_languages: enabled_languages}})
+        socket.emit('change_languages', enabled_languages)
+    })
     socket.on('download', async (token, time, format) => {
         const user = await users.findOne({token: token});
         if(!user){
@@ -93,18 +102,35 @@ io.on('connection', (socket) => {
             return;
         }
         let relevant_data
+        let language_filter = {}
+        if(!user.enabled_languages.includes('an')){
+            language_filter.$or = [];
+            for(const lang of user.enabled_languages){
+                if(lang === 'in'){
+                    language_filter.$or.push({lang: 'und'})
+                }else{
+                    language_filter.$or.push({lang: lang})
+                }
+            }
+        }
+        if(language_filter.$or && language_filter.$or.length === 0){
+            socket.emit('no_tweets')
+        }
         if(time === '10' || time === '100')
-            relevant_data = await tweets.find({}).sort({$natural:1}).limit(parseInt(time)).toArray()
+            relevant_data = await tweets.find({...language_filter}).sort({$natural:1}).limit(parseInt(time)).toArray()
 
         if(time === '24h')
-            relevant_data = await tweets.find({timestamp: {$gt: Date.now() - 24 * 60 * 60 * 1000}}).toArray()
+            relevant_data = await tweets.find({...language_filter, timestamp: {$gt: Date.now() - 24 * 60 * 60 * 1000}}).toArray()
         if(time === '7d')
-            relevant_data = await tweets.find({timestamp: {$gt: Date.now() - 7 * 24 * 60 * 60 * 1000}}).toArray()
+            relevant_data = await tweets.find({...language_filter, timestamp: {$gt: Date.now() - 7 * 24 * 60 * 60 * 1000}}).toArray()
         if(time === '30d')
-            relevant_data = await tweets.find({timestamp: {$gt: Date.now() - 30 * 24 * 60 * 60 * 1000}}).toArray()
+            relevant_data = await tweets.find({...language_filter, timestamp: {$gt: Date.now() - 30 * 24 * 60 * 60 * 1000}}).toArray()
         if(time === 'all')
             relevant_data = await tweets.find().toArray()
-
+        if(relevant_data.length === 0){
+            socket.emit('no_tweets')
+            return
+        }
         let rows = [['Date', 'Name', 'Profile', 'Tweet']]
         for(let tweet of relevant_data){
             rows.push([timeConverter(tweet.timestamp), tweet.user.name, 'https://twitter.com/' + tweet.user.screen_name, 'https://twitter.com/statuses/' + tweet.id_str])
@@ -142,7 +168,6 @@ async function toggleStream(token, socket){
     });
     stream.on('connected', () => {
         console.log(chalk.green('tweet stream started'))
-        console.log(power_timestamp)
         io.to('loggedIn').emit('power_timestamp', true, power_timestamp)
     })
     await users.updateOne(user, {$set: {streaming: Date.now()}});

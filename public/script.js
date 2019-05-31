@@ -1,5 +1,7 @@
 let token = localStorage.getItem('token');
 let last_tweet_timestamp;
+let enabled_languages = [];
+
 const socket = io();
 
 
@@ -11,7 +13,8 @@ if(!token){
 function showLogin() {
     Swal.mixin({
         input: 'text',
-        showCancelButton: true
+        showCancelButton: false,
+        allowOutsideClick: false
     })
     .queue([
         {
@@ -30,9 +33,11 @@ function showLogin() {
         socket.emit('login', username, password);
     })
 }
-socket.on('login', (_token) => {
+socket.on('login', (_token, languages) => {
     if(_token){
         token = _token;
+        enabled_languages = languages;
+        changeLanguages(enabled_languages)
         localStorage.setItem('token', _token);
     }else{
         Swal.fire({
@@ -46,6 +51,74 @@ socket.on('login', (_token) => {
         })
     }
 })
+
+$('#de').on('click', () => toggleLanguage('de'))
+$('#en').on('click', () => toggleLanguage('en'))
+$('#in').on('click', () => toggleLanguage('in'))
+$('#an').on('click', () => toggleLanguage('an'))
+
+function toggleLanguage(language_to_toggle){
+    let adjective = ''
+    switch (language_to_toggle) {
+        case 'de':
+            adjective = 'german'
+            break;
+        case 'en':
+            adjective = 'english'
+            break;
+        case 'in':
+            adjective = 'not identifiable (e.g. images without text) '
+            break;
+        case 'an':
+            adjective = 'ALL recorded'
+            break;
+
+    }
+    if(!enabled_languages || !enabled_languages.includes(language_to_toggle)){
+        Swal.fire({
+            type: 'question',
+            title: 'Enable language',
+            text: 'Are you sure you want to include ' + adjective + ' tweets?',
+            showCancelButton: true,
+            confirmButtonText: 'Yes',
+            cancelButtonText: 'No'
+        })
+        .then((result) => {
+            if(!result.value) return
+            if(!enabled_languages) enabled_languages = []
+            enabled_languages.push(language_to_toggle)
+            socket.emit('change_languages', token, enabled_languages)
+        })
+    }else{
+        Swal.fire({
+            type: 'question',
+            title: 'Enable language',
+            text: 'Are you sure you do not want to include ' + adjective + ' tweets?',
+            showCancelButton: true,
+            confirmButtonText: 'Yes',
+            cancelButtonText: 'No'
+        })
+        .then((result) => {
+            if(!result.value) return
+            const i = enabled_languages.indexOf(language_to_toggle);
+            if(i > -1)
+                enabled_languages.splice(i, 1)
+            socket.emit('change_languages', token, enabled_languages)
+        })
+    }
+}
+
+socket.on('change_languages', languages => changeLanguages(languages))
+
+function changeLanguages(languages) {
+    for(const e of document.querySelectorAll('.language_button')){
+        e.classList.add('btn-danger')
+        e.classList.remove('btn-success')
+    }
+    for(const lang of languages){
+        $('#' + lang).toggleClass('btn-danger btn-success')
+    }
+}
 
 $('#keys').on('click', () => {
     socket.emit('getKeys', token)
@@ -86,7 +159,6 @@ socket.on('getKeys', (keys) => {
         cancelButtonAriaLabel: 'Thumbs down',
     })
     .then((result) => {
-        console.log(result)
         if(result.value)
             fireAddKeyword();
         else if (result.dismiss === "cancel")
@@ -94,7 +166,14 @@ socket.on('getKeys', (keys) => {
 
     })
 })
-
+socket.on('no_tweets', () => {
+    Swal.fire({
+        title: 'No tweets found',
+        type: 'error',
+        text: 'There are no tweets matching your query',
+        confirmButtonText: 'Ok',
+    })
+})
 socket.on('tweet', (date) => {
     last_tweet_timestamp = date
 })
@@ -190,21 +269,7 @@ function exportToCsv(filename, rows) {
     }
 
     const blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
-    if (navigator.msSaveBlob) { // IE 10+
-        navigator.msSaveBlob(blob, filename);
-    } else {
-        var link = document.createElement("a");
-        if (link.download !== undefined) { // feature detection
-            // Browsers that support HTML5 download attribute
-            var url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", filename);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    }
+    saveAs(blob, filename + '.csv')
 }
 
 function exportToTxt(filename, rows) {
@@ -220,21 +285,7 @@ function exportToTxt(filename, rows) {
     }
 
     const blob = new Blob([file], { type: 'text/txt;charset=utf-8;' });
-    if (navigator.msSaveBlob) { // IE 10+
-        navigator.msSaveBlob(blob, filename + '.txt');
-    } else {
-        var link = document.createElement("a");
-        if (link.download !== undefined) { // feature detection
-            // Browsers that support HTML5 download attribute
-            var url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", filename + '.txt');
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    }
+    saveAs(blob, filename + '.txt')
 }
 function exportToJson(filename, rows) {
     const filed_names = rows.shift();
@@ -251,19 +302,5 @@ function exportToJson(filename, rows) {
     file += ']'
 
     const blob = new Blob([file], { type: 'text/json;charset=utf-8;' });
-    if (navigator.msSaveBlob) { // IE 10+
-        navigator.msSaveBlob(blob, filename + '.json');
-    } else {
-        var link = document.createElement("a");
-        if (link.download !== undefined) { // feature detection
-            // Browsers that support HTML5 download attribute
-            var url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", filename + '.json');
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    }
+    saveAs(blob, filename + '.json')
 }

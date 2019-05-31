@@ -1,20 +1,77 @@
-main {
-    display: grid!important;
-    position: absolute;
-    align-items: center;
-    width: 98vw;
-    height: 98vh;
-    margin: 1vh 1vw 1vh 1vw;
-    left: 0;
-    top: 0;
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 7fr .5fr .5fr;
-    grid-template-areas:
-        "date_select date_select date_select"
-        "type_select type_select type_select"
-        "download download download"
-        "status status status"
-        "keys power logout";
+html, body {
+    height: 100%;
+}
+@media (max-width: 800px){
+    main {
+        display: grid!important;
+        position: absolute;
+        align-items: center;
+        width: 98%;
+        height: 98%;
+        margin: 1% 1% 1% 1%;
+        left: 0;
+        top: 0;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr .5fr 5fr .5fr .5fr;
+        grid-template-areas:
+            "date_select date_select date_select date_select"
+            "type_select type_select type_select type_select"
+            "de en in an"
+            "download download download download"
+            "status status status status"
+            "keys power power logout";
+    }
+
+    #download {
+        margin: 25vw;
+        height: 48vw;
+        border-radius: 50%;
+        grid-area: download;
+    }
+}
+@media (min-width: 800px){
+    main {
+        display: grid!important;
+        position: absolute;
+        align-items: center;
+        width: 98%;
+        height: 98%;
+        margin: 1% 1% 1% 1%;
+        left: 0;
+        top: 0;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr 10fr 1fr 1fr;
+        grid-template-areas:
+            "en download download download"
+            "de download download download"
+            "in download download download"
+            "an download download download"
+            "type_select type_select type_select type_select"
+            "date_select date_select date_select date_select"
+            "... ... ... ..."
+            "status status status status"
+            "keys power power logout";
+    }
+    #download {
+        justify-self: center;
+        width: 100%;
+        height: calc(100vw / 6);
+        border-radius: calc(100vw / 6);
+        width: calc(100vw / 6);
+        grid-area: download;
+    }
+}
+#de {
+    grid-area: de;
+}
+#en {
+    grid-area: en;
+}
+#in {
+    grid-area: in;
+}
+#an {
+    grid-area: an;
 }
 #date_select {
     width: 100%;
@@ -24,17 +81,11 @@ main {
     width: 100%;
     grid-area: type_select;
 }
-#download {
-    margin: 25vw;
-    height: 48vw;
-    border-radius: 50%;
-    grid-area: download;
-}
 #status {
     grid-area: status;
     margin: 1vw;
 }
-#keys, #logout{
+#keys, #logout, #de, #en, #in, #an{
     margin: 1vw;
 }
 #keys {
