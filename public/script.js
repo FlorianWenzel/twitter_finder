@@ -30,10 +30,10 @@ function showLogin() {
         socket.emit('login', username, password);
     })
 }
-socket.on('login', (t) => {
-    if(t){
-        token = token;
-        localStorage.setItem('token', t);
+socket.on('login', (_token) => {
+    if(_tokent){
+        token = _token;
+        localStorage.setItem('token', _token);
     }else{
         Swal.fire({
             type: 'error',

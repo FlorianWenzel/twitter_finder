@@ -40,7 +40,8 @@ io.on('connection', (socket) => {
         if(token){
             valid = !!(await users.findOne({token: token}))
         }else{
-            const hash = (await users.findOne({username: username})).password
+            const user =  await users.findOne({username: username})
+            const hash = user ? user.password : false
             valid =  !hash ? false : await bcrypt.compare(password, hash)
         }
 
