@@ -14,12 +14,13 @@ html, body {
         grid-template-columns: 1fr 1fr 1fr 1fr;
         grid-template-rows: 1fr 1fr .5fr 5fr .5fr .5fr;
         grid-template-areas:
-            "date_select date_select date_select date_select"
+            "time_select time_select time_select time_select"
             "type_select type_select type_select type_select"
             "de en in an"
             "download download download download"
             "status status status status"
-            "keys power power logout";
+            "keys keys ban ban"
+            "power power logout logout";
     }
 
     #download {
@@ -46,11 +47,11 @@ html, body {
             "de download download download"
             "in download download download"
             "an download download download"
+            "time_select time_select time_select time_select"
             "type_select type_select type_select type_select"
-            "date_select date_select date_select date_select"
             "... ... ... ..."
-            "status status status status"
-            "keys power power logout";
+            "status status keys ban"
+            "power power logout logout";
     }
     #download {
         justify-self: center;
@@ -60,6 +61,11 @@ html, body {
         width: calc(100vw / 6);
         grid-area: download;
     }
+}
+#time_select{
+    grid-area: time_select;
+    width: 100%;
+    text-align: center;
 }
 #de {
     grid-area: de;
@@ -85,8 +91,11 @@ html, body {
     grid-area: status;
     margin: 1vw;
 }
-#keys, #logout, #de, #en, #in, #an{
+#keys, #logout, #power, #de, #en, #in, #an, #ban{
     margin: 1vw;
+}
+#ban {
+    grid-area: ban;
 }
 #keys {
     grid-area: keys;

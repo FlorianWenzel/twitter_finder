@@ -62,6 +62,14 @@ io.on('connection', (socket) => {
         }
         socket.emit('getKeys', user.keys);
     })
+    socket.on('getBannedKeys', async (token) => {
+        const user = await users.findOne({token: token});
+        if(!user){
+            socket.emit('login', false);
+            return;
+        }
+        socket.emit('getBannedKeys', user.bans ? user.bans : []);
+    })
     socket.on('addKey', async (token, key) => {
         const user = await users.findOne({token: token});
         if(!user){
@@ -86,6 +94,30 @@ io.on('connection', (socket) => {
         await users.updateOne({token: token}, {$set: {keys: keys}})
         socket.emit('getKeys', keys);
     })
+    socket.on('addBannedKey', async (token, key) => {
+        const user = await users.findOne({token: token});
+        if(!user){
+            socket.emit('login', false);
+            return;
+        }
+        const bans = (user.bans ? user.bans : []);
+        bans.push(key);
+        await users.updateOne({token: token}, {$set: {bans: bans}})
+        socket.emit('getBannedKeys', bans);
+    })
+    socket.on('delBannedKey', async (token, key) => {
+        const user = await users.findOne({token: token});
+        if(!user){
+            socket.emit('login', false);
+            return;
+        }
+        let bans = (user.bans ? user.bans : []);
+        const i = bans.indexOf(key);
+        if(i > -1)
+            bans.splice(i, 1)
+        await users.updateOne({token: token}, {$set: {bans: bans}})
+        socket.emit('getBannedKeys', bans);
+    })
     socket.on('change_languages', async (token, enabled_languages) => {
         const user = await users.findOne({token: token});
         if(!user){
@@ -95,14 +127,14 @@ io.on('connection', (socket) => {
         await users.updateOne(user, {$set: {enabled_languages: enabled_languages}})
         socket.emit('change_languages', enabled_languages)
     })
-    socket.on('download', async (token, time, format) => {
+    socket.on('download', async (token, from, to, format) => {
         const user = await users.findOne({token: token});
         if(!user){
             socket.emit('login', false);
             return;
         }
         let relevant_data
-        let language_filter = {}
+        let language_filter = {}, time_filter = {}
         if(!user.enabled_languages.includes('an')){
             language_filter.$or = [];
             for(const lang of user.enabled_languages){
@@ -116,24 +148,18 @@ io.on('connection', (socket) => {
         if(language_filter.$or && language_filter.$or.length === 0){
             socket.emit('no_tweets')
         }
-        if(time === '10' || time === '100')
-            relevant_data = await tweets.find({...language_filter}).sort({$natural:1}).limit(parseInt(time)).toArray()
+        relevant_data = await tweets.find({...language_filter, $and: [{timestamp: {$gt: from}}, {timestamp: {$lt: to}}]}).toArray()
 
-        if(time === '24h')
-            relevant_data = await tweets.find({...language_filter, timestamp: {$gt: Date.now() - 24 * 60 * 60 * 1000}}).toArray()
-        if(time === '7d')
-            relevant_data = await tweets.find({...language_filter, timestamp: {$gt: Date.now() - 7 * 24 * 60 * 60 * 1000}}).toArray()
-        if(time === '30d')
-            relevant_data = await tweets.find({...language_filter, timestamp: {$gt: Date.now() - 30 * 24 * 60 * 60 * 1000}}).toArray()
-        if(time === 'all')
-            relevant_data = await tweets.find().toArray()
         if(relevant_data.length === 0){
             socket.emit('no_tweets')
             return
         }
-        let rows = [['Date', 'Name', 'Profile', 'Tweet']]
+        let rows = [['Time', 'Name', 'Description', 'Follower', 'Following', 'Retweet', 'Original tweeter', 'Text', 'Profile', 'Tweet']]
         for(let tweet of relevant_data){
-            rows.push([timeConverter(tweet.timestamp), tweet.user.name, 'https://twitter.com/' + tweet.user.screen_name, 'https://twitter.com/statuses/' + tweet.id_str])
+            const is_retweet = !!tweet.retweeted_status
+            const text = is_retweet ? (tweet.retweeted_status.extended_tweet ? tweet.retweeted_status.extended_tweet.full_text: tweet.retweeted_status.text) : (tweet.extended_tweet ? tweet.extended_tweet.full_text : tweet.text)
+            const og_tweeter = is_retweet ? tweet.retweeted_status.user.screen_name : '-';
+            rows.push([timeConverter(tweet.timestamp), tweet.user.name, tweet.user.description, tweet.user.followers_count, tweet.user.friends_count, is_retweet, og_tweeter, text, 'https://twitter.com/' + tweet.user.screen_name, 'https://twitter.com/statuses/' + tweet.id_str])
         }
         socket.emit('download', format, 'file', rows)
     })
@@ -162,8 +188,15 @@ async function toggleStream(token, socket){
         io.to('loggedIn').emit('tweet', last_tweet_timestamp)
         //check if tweeter is already in database
         const known_tweeter = !!(await tweets.findOne({"user.id": tweet.user.id}))
-        if(known_tweeter)
-            return
+        if(known_tweeter) return
+        //check if tweet contians blocked keywords
+        let contains_blocked_key = false;
+        for(const key of user.bans)
+            if(tweet.text.includes(key)){
+                contains_blocked_key = true
+                break
+            }
+        if(contains_blocked_key) return
         tweets.insertOne({...tweet, timestamp: Date.now()})
     });
     stream.on('connected', () => {
@@ -174,7 +207,7 @@ async function toggleStream(token, socket){
 }
 
 function timeConverter(UNIX_timestamp){
-    const a = new Date(UNIX_timestamp * 1000);
+    const a = new Date(UNIX_timestamp);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const year = a.getFullYear();
     const month = months[a.getMonth()];

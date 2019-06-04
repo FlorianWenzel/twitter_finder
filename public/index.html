@@ -15,17 +15,16 @@
     </head>
     <body>
         <main>
-            <select  id="date_select" class="form-control">
-                <option value="24h">Last 24h</option>
-                <option value="7d">Last 7 Tage</option>
-                <option value="30d">Last 30 Tage</option>
-                <option value="10">Latest 10</option>
-                <option value="100">Latest 100</option>
-                <option value="all">All</option>
-            </select>
+            <div id="time_select">
+                <input id="from" type="date" class="form-control" style="float: left; width: 40%;" value="">
+                <i class="fas fa-arrow-right" style="float:left; margin-top: 10px; width: 20%;"></i>
+                <input id="to" type="date" class="form-control" style="float: left; width: 40%;" value="">
+            </div>
+
             <select  id="type_select" class="form-control">
                 <option value="txt">as .txt</option>
                 <option value="csv">as .csv</option>
+                <option value="csv_excel">as .csv for excel (includes "sep=,")</option>
                 <option value="json">as .json</option>
             </select>
             <button id="de" class="btn btn-danger language_button"><img src="https://www.countryflags.io/de/flat/24.png"></button>
@@ -38,6 +37,7 @@
                 last tweet recorded: <span id="last_tweet"> - </span> ago
             </div>
             <button id="keys" class="btn btn-primary"><i class="fas fa-key"></i></button>
+            <button id="ban" class="btn btn-secondary"><i class="fas fa-ban"></i></button>
             <button id="power" class="btn btn-success"><i class="fas fa-power-off"></i></button>
             <button id="logout" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i></button>
 

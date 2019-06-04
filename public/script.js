@@ -5,6 +5,9 @@ let enabled_languages = [];
 const socket = io();
 
 
+$('#from').val(new Date(Date.now() - 1000 * 60 * 60 * 25 * 7).toLocaleDateString('en-CA'))
+$('#to').val(new Date().toLocaleDateString('en-CA'))
+
 if(!token){
     showLogin();
 }else{
@@ -123,6 +126,9 @@ function changeLanguages(languages) {
 $('#keys').on('click', () => {
     socket.emit('getKeys', token)
 })
+$('#ban').on('click', () => {
+    socket.emit('getBannedKeys', token)
+})
 $('#logout').on('click', () => {
     localStorage.removeItem('token')
     showLogin();
@@ -131,7 +137,10 @@ $('#power').on('click', () => {
     socket.emit('stream', token)
 })
 $('#download').on('click', () => {
-    socket.emit('download', token, $('#date_select').val(), $('#type_select').val())
+    console.log(new Date($('#from').val()+'T00:00:00'))
+    const from = new Date($('#from').val()+'T00:00:00').getTime()
+    const to = new Date($('#to').val()+'T23:59:59').getTime()
+    socket.emit('download', token, from, to, $('#type_select').val())
 })
 socket.on('getKeys', (keys) => {
     let badges = ''
@@ -139,7 +148,7 @@ socket.on('getKeys', (keys) => {
         for(key of keys)
             badges += '<span class="badge badge-primary">' + key + '</span> '
     Swal.fire({
-        title: 'Keywords',
+        title: 'keywords',
         customClass: {
             confirmButton: 'btn btn-success mx-1',
             cancelButton: 'btn btn-danger mx-1'
@@ -147,7 +156,7 @@ socket.on('getKeys', (keys) => {
         buttonsStyling: false,
         type: '',
         html:
-            'Aktuelle Tags:<br>' + badges,
+            'Current tags:<br>' + badges,
         showCloseButton: true,
         showCancelButton: true,
         focusConfirm: false,
@@ -166,11 +175,44 @@ socket.on('getKeys', (keys) => {
 
     })
 })
+socket.on('getBannedKeys', (banned_keys) => {
+    let badges = ''
+    if(banned_keys)
+        for(key of banned_keys)
+            badges += '<span class="badge badge-danger">' + key + '</span> '
+    Swal.fire({
+        title: 'banned keys',
+        customClass: {
+            confirmButton: 'btn btn-success mx-1',
+            cancelButton: 'btn btn-danger mx-1'
+          },
+        buttonsStyling: false,
+        type: '',
+        html:
+            'Current banned tags:<br>' + badges,
+        showCloseButton: true,
+        showCancelButton: true,
+        focusConfirm: false,
+        confirmButtonText:
+            '<i class="fa fa-plus"></i>',
+        confirmButtonAriaLabel: 'Add tag',
+        cancelButtonText:
+            '<i class="fa fa-minus"></i>',
+        cancelButtonAriaLabel: 'Thumbs down',
+    })
+    .then((result) => {
+        if(result.value)
+            fireAddBannedKeyword();
+        else if (result.dismiss === "cancel")
+            fireRemoveBannedKeyword();
+
+    })
+})
 socket.on('no_tweets', () => {
     Swal.fire({
-        title: 'No tweets found',
+        title: 'no tweets found',
         type: 'error',
-        text: 'There are no tweets matching your query',
+        text: 'there are no tweets matching your query',
         confirmButtonText: 'Ok',
     })
 })
@@ -179,7 +221,7 @@ socket.on('tweet', (date) => {
 })
 socket.on('power_timestamp', (running, timestamp) => {
     const prefix = running ? '<i class="fas fa-power-off" style="color: green"></i> online since ' : '<i class="fas fa-power-off" style="color: red"></i> offline since '
-    const minutes_ago = Math.ceil((Date.now() - timestamp) / (60000))
+    const minutes_ago = Math.ceil((Date.now() - timestamp) / (60000)) % 60
     const hours_ago = Math.floor((Date.now() - timestamp) / (60 * 60000))
     $('#power_timestamp').html( prefix + (hours_ago ? (hours_ago + 'h ') : '') + minutes_ago + 'm')
 })
@@ -192,9 +234,48 @@ setInterval(() => {
     }
 }, 1000)
 
+
+function fireAddBannedKeyword(){
+    Swal.fire({
+        title: 'add banned keyword',
+        confirmButtonText: '<i class="fas fa-plus"></i>',
+        input: 'text',
+        showCancelButton: true,
+        customClass: {
+            confirmButton: 'btn btn-success mx-1',
+            cancelButton: 'btn btn-primary mx-1'
+          },
+        buttonsStyling: false,
+    })
+    .then((result, key = result.value) => {
+        if(key){
+            socket.emit('addBannedKey', token, key)
+        }
+    })
+}
+
+function fireRemoveBannedKeyword(){
+    Swal.fire({
+        title: 'remove banned keyword',
+        confirmButtonText: '<i class="fas fa-minus"></i>',
+        input: 'text',
+        showCancelButton: true,
+        customClass: {
+            confirmButton: 'btn btn-danger mx-1',
+            cancelButton: 'btn btn-primary mx-1'
+          },
+        buttonsStyling: false,
+    })
+    .then((result, key = result.value) => {
+        if(key){
+            socket.emit('delBannedKey', token, key)
+        }
+    })
+}
+
 function fireAddKeyword(){
     Swal.fire({
-        title: 'Add Keyword',
+        title: 'add keyword',
         confirmButtonText: '<i class="fas fa-plus"></i>',
         input: 'text',
         showCancelButton: true,
@@ -213,7 +294,7 @@ function fireAddKeyword(){
 
 function fireRemoveKeyword(){
     Swal.fire({
-        title: 'Remove Keyword',
+        title: 'remove keyword',
         confirmButtonText: '<i class="fas fa-minus"></i>',
         input: 'text',
         showCancelButton: true,
@@ -235,6 +316,9 @@ socket.on('download', (type, filename, rows) => {
         case 'csv':
             exportToCsv(filename, rows)
             break;
+        case 'csv_excel':
+            exportToCsv(filename, rows, true)
+            break;
         case 'txt':
             exportToTxt(filename, rows)
             break;
@@ -245,7 +329,7 @@ socket.on('download', (type, filename, rows) => {
     }
 })
 
-function exportToCsv(filename, rows) {
+function exportToCsv(filename, rows, for_excel) {
     const processRow = function (row) {
         let finalVal = '';
         for (let j = 0; j < row.length; j++) {
@@ -263,7 +347,7 @@ function exportToCsv(filename, rows) {
         return finalVal + '\n';
     };
 
-    let csvFile = '';
+    let csvFile = for_excel ? 'sep=,\n' : '';
     for(const row of rows){
         csvFile += processRow(row)
     }
