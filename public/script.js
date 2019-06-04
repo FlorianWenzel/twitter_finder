@@ -80,7 +80,7 @@ function toggleLanguage(language_to_toggle){
     if(!enabled_languages || !enabled_languages.includes(language_to_toggle)){
         Swal.fire({
             type: 'question',
-            title: 'Enable language',
+            title: 'enable language',
             text: 'Are you sure you want to include ' + adjective + ' tweets?',
             showCancelButton: true,
             confirmButtonText: 'Yes',
@@ -95,7 +95,7 @@ function toggleLanguage(language_to_toggle){
     }else{
         Swal.fire({
             type: 'question',
-            title: 'Enable language',
+            title: 'disable language',
             text: 'Are you sure you do not want to include ' + adjective + ' tweets?',
             showCancelButton: true,
             confirmButtonText: 'Yes',
@@ -137,10 +137,29 @@ $('#power').on('click', () => {
     socket.emit('stream', token)
 })
 $('#download').on('click', () => {
-    console.log(new Date($('#from').val()+'T00:00:00'))
     const from = new Date($('#from').val()+'T00:00:00').getTime()
     const to = new Date($('#to').val()+'T23:59:59').getTime()
     socket.emit('download', token, from, to, $('#type_select').val())
+})
+socket.on('prepareing_download', (max, current) => {
+    if(current === 0)
+        Swal.fire({
+            title: 'prepareing data',
+            type: '',
+            html:
+                'depending on your query this might take a while<br><br>' +
+                `<div class="progress">
+                    <div id="download_process" class="progress-bar progress-bar-striped" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>`,
+            showCloseButton: false,
+            showCancelButton: false,
+            showConfirmButton: false,
+            allowOutsideClick: false
+        })
+    else{
+        $('#download_process').css('width', Math.ceil((current / max) * 100) + "%")
+        $('#download_process').attr('aria-valuenow', Math.ceil((current / max) * 100))
+    }
 })
 socket.on('getKeys', (keys) => {
     let badges = ''
@@ -208,11 +227,11 @@ socket.on('getBannedKeys', (banned_keys) => {
 
     })
 })
-socket.on('no_tweets', () => {
+socket.on('too_many_results', (count) => {
     Swal.fire({
-        title: 'no tweets found',
+        title: 'too many tweets (> 50\'000) maching query',
         type: 'error',
-        text: 'there are no tweets matching your query',
+        text: 'there are to many (' + count + ') tweets matching your query',
         confirmButtonText: 'Ok',
     })
 })
@@ -312,6 +331,7 @@ function fireRemoveKeyword(){
 }
 
 socket.on('download', (type, filename, rows) => {
+    Swal.close()
     switch (type) {
         case 'csv':
             exportToCsv(filename, rows)

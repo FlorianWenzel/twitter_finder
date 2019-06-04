@@ -127,41 +127,49 @@ io.on('connection', (socket) => {
         await users.updateOne(user, {$set: {enabled_languages: enabled_languages}})
         socket.emit('change_languages', enabled_languages)
     })
-    socket.on('download', async (token, from, to, format) => {
-        const user = await users.findOne({token: token});
-        if(!user){
-            socket.emit('login', false);
-            return;
-        }
-        let relevant_data
-        let language_filter = {}, time_filter = {}
-        if(!user.enabled_languages.includes('an')){
-            language_filter.$or = [];
-            for(const lang of user.enabled_languages){
-                if(lang === 'in'){
-                    language_filter.$or.push({lang: 'und'})
-                }else{
-                    language_filter.$or.push({lang: lang})
+    socket.on('download', (token, from, to, format) => {
+        users.findOne({token: token})
+        .then((user) => {
+            if(!user){
+                socket.emit('login', false);
+                return;
+            }
+            return user;
+        })
+        .then(async (user) => {
+            let language_filter = {}
+            if(!user.enabled_languages.includes('an')){
+                language_filter.$or = [];
+                for(const lang of user.enabled_languages){
+                    if(lang === 'in'){
+                        language_filter.$or.push({lang: 'und'})
+                    }else{
+                        language_filter.$or.push({lang: lang})
+                    }
                 }
             }
-        }
-        if(language_filter.$or && language_filter.$or.length === 0){
-            socket.emit('no_tweets')
-        }
-        relevant_data = await tweets.find({...language_filter, $and: [{timestamp: {$gt: from}}, {timestamp: {$lt: to}}]}).toArray()
+            let rows = [['Time', 'Name', 'Description', 'Follower', 'Following', 'Retweet', 'Original tweeter', 'Text', 'Profile', 'Tweet']]
+            const count = await tweets.find({$and: [{...language_filter, timestamp: {$gt: from}}, {timestamp: {$lt: to}}]}).count();
+            if(count > 50000){
+                socket.emit('too_many_results', count)
+                return;
+            }else{
+                socket.emit('prepareing_download', count, 0)
+            }
+            let index = 0;
+            tweets.find({$and: [{...language_filter, timestamp: {$gt: from}}, {timestamp: {$lt: to}}]})
+            .forEach((tweet) => {
+                index++
+                if(index % 50 === 0)
+                    socket.emit('prepareing_download', count, index);
+                const is_retweet = !!tweet.retweeted_status
+                rows.push([new Date(tweet.timestamp).toLocaleDateString(), tweet.user.name, tweet.user.description, tweet.user.followers_count, tweet.user.friends_count, is_retweet, is_retweet ? tweet.retweeted_status.user.screen_name : '-', is_retweet ? (tweet.retweeted_status.extended_tweet ? tweet.retweeted_status.extended_tweet.full_text: tweet.retweeted_status.text) : (tweet.extended_tweet ? tweet.extended_tweet.full_text : tweet.text), 'https://twitter.com/' + tweet.user.screen_name, 'https://twitter.com/statuses/' + tweet.id_str])
+            })
+            .then(() => {
+                socket.emit('download', format, 'file', rows)
+            })
+        })
 
-        if(relevant_data.length === 0){
-            socket.emit('no_tweets')
-            return
-        }
-        let rows = [['Time', 'Name', 'Description', 'Follower', 'Following', 'Retweet', 'Original tweeter', 'Text', 'Profile', 'Tweet']]
-        for(let tweet of relevant_data){
-            const is_retweet = !!tweet.retweeted_status
-            const text = is_retweet ? (tweet.retweeted_status.extended_tweet ? tweet.retweeted_status.extended_tweet.full_text: tweet.retweeted_status.text) : (tweet.extended_tweet ? tweet.extended_tweet.full_text : tweet.text)
-            const og_tweeter = is_retweet ? tweet.retweeted_status.user.screen_name : '-';
-            rows.push([timeConverter(tweet.timestamp), tweet.user.name, tweet.user.description, tweet.user.followers_count, tweet.user.friends_count, is_retweet, og_tweeter, text, 'https://twitter.com/' + tweet.user.screen_name, 'https://twitter.com/statuses/' + tweet.id_str])
-        }
-        socket.emit('download', format, 'file', rows)
     })
     socket.on('stream', token => toggleStream(token, socket))
 })
